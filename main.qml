@@ -10,9 +10,13 @@ ApplicationWindow {
     height: 600
     title: "QRegularExpression Tester"
 
-
-
     property var ignoreUpdate: false
+    property var updateTimer: Timer {
+        id: updateTimer
+        interval: 300
+        repeat: false
+        onTriggered: performDelayedUpdate()
+    }
 
     ColumnLayout {
         id: root
@@ -115,13 +119,15 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 500
                         Layout.fillHeight: true
-                        onTextChanged: updateRegex()
+                        onTextChanged: {
+                            // Use delayed update to avoid interrupting input method
+                            updateTimer.restart()
+                        }
                         selectByMouse: true
                         font.pointSize: 15
                         placeholderText: "Enter test string"
                         textFormat: TextEdit.PlainText
                     }
-
                 }
 
                 RegexHighlighter {
@@ -200,11 +206,9 @@ ApplicationWindow {
         id: regexSearch
     }
 
-    // Function to update the regex results
+    // Function to update the regex results (immediate update for regex input changes)
     function updateRegex() {
-
-        if (ignoreUpdate)
-        {
+        if (ignoreUpdate) {
             return
         }
 
@@ -221,18 +225,48 @@ ApplicationWindow {
 
         regexSearch.findMatches(pattern, text, selectedOptions);
         var matches = regexSearch.output();
-
         resultTextArea.text = matches.join("<br>");
 
-        ignoreUpdate = true
+        // Trigger highlight update immediately, no text reset needed
+        highlighter.rehighlight()
+    }
 
-        var cursorPos = textInput.cursorPosition
+    // Delayed update function for handling text input changes
+    function performDelayedUpdate() {
+        if (ignoreUpdate) {
+            return
+        }
+
+        var pattern = regexInput.text.trim()
         var text = textInput.text
-        textInput.text = ""
-        textInput.text = text
-        textInput.cursorPosition = cursorPos
+
+        var selectedOptions = [];
+        for (var i = 0; i < optionsListView.model.count; ++i) {
+            var option = optionsListView.model.get(i);
+            if (option.checked) {
+                selectedOptions.push(option.value);
+            }
+        }
+
+        regexSearch.findMatches(pattern, text, selectedOptions);
+        var matches = regexSearch.output();
+        resultTextArea.text = matches.join("<br>");
+
+        // Only reset text when necessary to reduce input method interference
+        ignoreUpdate = true
+        var cursorPos = textInput.cursorPosition
+        var currentText = textInput.text
+
+        // Check if text reset is really needed (e.g., highlighting not applied correctly)
+        if (textInput.activeFocus && textInput.preeditText === "") {
+            textInput.text = ""
+            textInput.text = currentText
+            textInput.cursorPosition = cursorPos
+        } else {
+            // If there's preedit text (input method is active), only trigger highlight update
+            highlighter.rehighlight()
+        }
 
         ignoreUpdate = false
-
     }
 }
