@@ -15,7 +15,7 @@ void RegexHighlighter::highlightBlock(const QString& text)
         start = 0;
     }
     emit highlightBlock(QVariant(text), start);
-    setCurrentBlockState(start + text.count() + 1); // + 1 for the new line
+    setCurrentBlockState(start + text.size() + 1); // + 1 for the new line
 }
 
 QQuickTextDocument* RegexHighlighter::textDocument() const
@@ -40,7 +40,7 @@ void RegexHighlighter::setTextDocument(QQuickTextDocument* textDocument)
 
 void RegexHighlighter::setFormat(int start, int count, const QVariant& format)
 {
-    if (format.canConvert(QVariant::Color))
+    if (format.canConvert<QColor>())
     {
         QSyntaxHighlighter::setFormat(start, count, format.value<QColor>());
     }
